@@ -281,7 +281,7 @@ export default function MessagesPage() {
                     value={messageText}
                     onChange={(e) => setMessageText(e.target.value)}
                     placeholder="Type a message…"
-                    className="flex-1 rounded-lg border border-ink/15 px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
+                    className="flex-1 rounded-lg border border-ink/15 bg-surface text-ink placeholder:text-ink-soft px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
                   />
                   <button
                     type="submit"

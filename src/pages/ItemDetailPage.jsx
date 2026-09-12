@@ -575,7 +575,7 @@ export default function ItemDetailPage() {
                         value={messageText}
                         onChange={(e) => setMessageText(e.target.value)}
                         placeholder="Type a message…"
-                        className="flex-1 rounded-lg border border-ink/15 px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
+                        className="flex-1 rounded-lg border border-ink/15 bg-surface text-ink placeholder:text-ink-soft px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
                       />
                       <button
                         type="submit"
@@ -601,7 +601,7 @@ export default function ItemDetailPage() {
                     <select
                       value={reportForm.reason}
                       onChange={(e) => setReportForm((prev) => ({ ...prev, reason: e.target.value }))}
-                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
+                      className="w-full rounded-lg border border-ink/15 bg-surface text-ink px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
                     >
                       <option value="spam">Spam</option>
                       <option value="misleading">Misleading info</option>
@@ -616,7 +616,7 @@ export default function ItemDetailPage() {
                       value={reportForm.details}
                       onChange={(e) => setReportForm((prev) => ({ ...prev, details: e.target.value }))}
                       rows="3"
-                      className="w-full rounded-lg border border-ink/15 px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
+                      className="w-full rounded-lg border border-ink/15 bg-surface text-ink px-3 py-2 text-sm focus:border-amber focus:outline-none focus:ring-2 focus:ring-amber/20 transition"
                       placeholder="Explain your concern…"
                     />
                   </div>

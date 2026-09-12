@@ -1,9 +1,8 @@
 import {
   createUserWithEmailAndPassword,
-  getRedirectResult,
   GoogleAuthProvider,
   signInWithEmailAndPassword,
-  signInWithRedirect,
+  signInWithPopup,
   signOut,
   updateProfile,
 } from 'firebase/auth'
@@ -75,12 +74,7 @@ export async function signInWithEmail({ email, password }) {
 
 export async function signInWithGoogle() {
   const provider = new GoogleAuthProvider()
-  await signInWithRedirect(auth, provider)
-}
-
-export async function handleGoogleRedirectResult() {
-  const result = await getRedirectResult(auth)
-  if (!result) return null
+  const result = await signInWithPopup(auth, provider)
 
   await createUserProfile(result.user.uid, {
     email: result.user.email,

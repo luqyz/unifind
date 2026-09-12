@@ -1,22 +1,12 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { signInWithEmail, signInWithGoogle, handleGoogleRedirectResult } from '../services/firebaseService'
+import { signInWithEmail, signInWithGoogle } from '../services/firebaseService'
 
 export default function LoginPage() {
   const navigate = useNavigate()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [checkingRedirect, setCheckingRedirect] = useState(true)
-
-  useEffect(() => {
-    handleGoogleRedirectResult()
-      .then((user) => {
-        if (user) navigate('/')
-      })
-      .catch((err) => setError(err.message || 'Google login failed.'))
-      .finally(() => setCheckingRedirect(false))
-  }, [navigate])
 
   const handleChange = (event) => {
     const { name, value } = event.target
@@ -44,10 +34,10 @@ export default function LoginPage() {
 
     try {
       await signInWithGoogle()
-      // signInWithGoogle triggers a full-page redirect to Google,
-      // so execution won't continue past this line on success.
+      navigate('/')
     } catch (err) {
       setError(err.message || 'Google login failed.')
+    } finally {
       setLoading(false)
     }
   }
@@ -120,7 +110,7 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              disabled={loading || checkingRedirect}
+              disabled={loading}
               className="w-full rounded-lg bg-amber px-4 py-2.5 text-sm font-semibold text-navy hover:bg-amber-dark disabled:opacity-60 disabled:cursor-not-allowed transition"
             >
               {loading ? 'Signing in…' : 'Sign in'}
@@ -141,7 +131,7 @@ export default function LoginPage() {
           <button
             type="button"
             onClick={handleGoogleLogin}
-            disabled={loading || checkingRedirect}
+            disabled={loading}
             className="w-full rounded-lg border border-ink/15 bg-surface px-4 py-2.5 text-sm font-medium text-ink hover:bg-surface-soft disabled:opacity-60 disabled:cursor-not-allowed transition flex items-center justify-center gap-2"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24">
