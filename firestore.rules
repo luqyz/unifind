@@ -1,7 +1,6 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Helper functions
     function signedIn() {
       return request.auth != null;
     }
@@ -12,49 +11,52 @@ service cloud.firestore {
 
     function isAdmin() {
       return signedIn() &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)/private/data) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)/private/data).data.role == 'admin';
     }
 
     function isBanned() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBanned == true;
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid)/private/data) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)/private/data).data.isBanned == true;
     }
 
-    // Explicit collection-group rule for messages, as a fallback to ensure
-    // collectionGroup() queries across all items are properly authorized.
     match /{path=**}/messages/{messageId} {
       allow read: if signedIn() && request.auth.uid in resource.data.participants;
     }
 
-    // Users collection - allow public reading for verification status, restricted writing
     match /users/{userId} {
       allow read: if true;
-      allow create: if signedIn() && request.auth.uid == userId && 
+      allow create: if signedIn() && request.auth.uid == userId &&
         request.resource.data.uid == userId &&
-        request.resource.data.email is string &&
         request.resource.data.displayName is string &&
         request.resource.data.provider in ['email', 'google', 'anonymous'] &&
         request.resource.data.isVerified == false &&
-        request.resource.data.role == 'user' &&
-        request.resource.data.isBanned == false &&
         request.resource.data.createdAt is timestamp;
 
-      // SECURITY FIX (critical): an owner may update their own profile, but
-      // never the privileged/moderation fields — those require isAdmin().
-      // Without this, any signed-in user could self-promote to admin,
-      // self-verify, or clear their own ban with a raw updateDoc() call.
       allow update: if isAdmin() || (
         isOwner(userId) &&
-        request.resource.data.role == resource.data.role &&
-        request.resource.data.isBanned == resource.data.isBanned &&
         request.resource.data.isVerified == resource.data.isVerified &&
         request.resource.data.uid == resource.data.uid
       );
       allow delete: if isAdmin();
+
+      match /private/{docId} {
+        allow read: if isOwner(userId) || isAdmin();
+
+        allow create: if isOwner(userId) &&
+          request.resource.data.email is string &&
+          request.resource.data.role == 'user' &&
+          request.resource.data.isBanned == false;
+
+        allow update: if isAdmin() || (
+          isOwner(userId) &&
+          request.resource.data.role == resource.data.role &&
+          request.resource.data.isBanned == resource.data.isBanned
+        );
+        allow delete: if isAdmin();
+      }
     }
 
-    // Items collection - public read, authenticated create, restricted update/delete
     match /items/{itemId} {
       allow read: if true;
       allow create: if signedIn() && !isBanned() &&
@@ -75,10 +77,6 @@ service cloud.firestore {
         (!('privateDetails' in request.resource.data) || request.resource.data.privateDetails is string) &&
         (!('hasReward' in request.resource.data) || request.resource.data.hasReward is bool);
 
-      // SECURITY FIX (high): a banned owner can no longer edit their listings.
-      // SECURITY FIX (medium): moderation fields (isHidden, flaggedCount,
-      // isDeleted) are frozen for owners — only an admin can change them,
-      // so a flagged/hidden listing can't be silently un-hidden by its poster.
       allow update: if (
         (isOwner(resource.data.userId) && !isBanned()) || isAdmin()
       ) &&
@@ -90,14 +88,9 @@ service cloud.firestore {
         (isAdmin() || request.resource.data.isDeleted == resource.data.isDeleted);
       allow delete: if isOwner(resource.data.userId) || isAdmin();
 
-      // Messages subcollection for safe contact
       match /messages/{messageId} {
         allow read: if signedIn() && request.auth.uid in resource.data.participants;
 
-        // SECURITY FIX (high): banned users can't send messages.
-        // SECURITY FIX (medium): every conversation about an item must
-        // include that item's actual owner as one of the two participants —
-        // stops a user from DMing an arbitrary UID unrelated to the listing.
         allow create: if signedIn() && !isBanned() &&
           request.resource.data.senderId == request.auth.uid &&
           request.resource.data.receiverId is string &&
@@ -115,7 +108,6 @@ service cloud.firestore {
       }
     }
 
-    // Reports collection - private, admin only for modification
     match /reports/{reportId} {
       allow read: if isAdmin() || (signedIn() && resource.data.reporterUid == request.auth.uid);
       allow create: if signedIn() && !isBanned() &&
