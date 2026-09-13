@@ -26,7 +26,7 @@ const mobileNavItemClass = ({ isActive }) =>
   }`
 
 export default function Navbar() {
-  const { user, logout } = useAuth()
+  const { user, isAdmin, logout } = useAuth()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [desktopMenuOpen, setDesktopMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
@@ -66,6 +66,7 @@ export default function Navbar() {
               <NavLink to="/welcome" className={topNavLinkClass}>How it works</NavLink>
               {user && <NavLink to="/messages" className={topNavLinkClass}>Messages</NavLink>}
               {user && <NavLink to="/profile" className={topNavLinkClass}>My posts</NavLink>}
+              {isAdmin && <NavLink to="/admin" className={topNavLinkClass}>Admin</NavLink>}
             </nav>
 
             {/* CTA + Auth */}
@@ -111,6 +112,15 @@ export default function Navbar() {
                         >
                           My posts
                         </Link>
+                        {isAdmin && (
+                          <Link
+                            to="/admin"
+                            onClick={() => setDesktopMenuOpen(false)}
+                            className="topbar-dropdown-link flex items-center gap-2 px-4 py-2.5 text-sm"
+                          >
+                            Admin
+                          </Link>
+                        )}
                         <button
                           type="button"
                           onClick={() => {
@@ -180,6 +190,11 @@ export default function Navbar() {
             <NavLink to="/profile" onClick={() => setMobileOpen(false)} className="mobile-menu-link block px-1 py-1.5 text-sm">
               My posts
             </NavLink>
+            {isAdmin && (
+              <NavLink to="/admin" onClick={() => setMobileOpen(false)} className="mobile-menu-link block px-1 py-1.5 text-sm">
+                Admin
+              </NavLink>
+            )}
             <button
               type="button"
               onClick={() => {

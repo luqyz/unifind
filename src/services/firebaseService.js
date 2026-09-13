@@ -32,23 +32,45 @@ const sanitizeText = (value) =>
 
 export async function createUserProfile(uid, data = {}) {
   const userRef = doc(db, 'users', uid)
+  const privateRef = doc(db, 'users', uid, 'private', 'data')
 
+  // Public profile — safe for anyone to read (displayName, avatar, etc.)
   await setDoc(
     userRef,
     {
       uid,
-      email: data.email ?? '',
       displayName: data.displayName ?? '',
       photoURL: data.photoURL ?? null,
       provider: data.provider ?? 'email',
       isVerified: false,
-      role: 'user',
-      isBanned: false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     },
     { merge: true },
   )
+
+  // Private profile — email, role, ban status. Only the owner or an
+  // admin can ever read this (see firestore.rules).
+  const privateSnap = await getDoc(privateRef)
+  if (!privateSnap.exists()) {
+    // First time this user has ever signed in — create with defaults.
+    await setDoc(privateRef, {
+      email: data.email ?? '',
+      role: 'user',
+      isBanned: false,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+  } else {
+    // Returning user — refresh email only. Never touch role/isBanned here,
+    // so an already-promoted admin (or a banned user) never gets silently
+    // reset back to defaults on their next login.
+    await setDoc(
+      privateRef,
+      { email: data.email ?? privateSnap.data().email, updatedAt: serverTimestamp() },
+      { merge: true },
+    )
+  }
 }
 
 export async function signUpWithEmail({ email, password, displayName }) {
@@ -174,7 +196,7 @@ export async function createItem({
 }
 
 export async function getPublicItems() {
-  const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'))
+  const q = query(collection(db, 'items'), where('isHidden', '==', false), orderBy('createdAt', 'desc'))
   const snapshot = await getDocs(q)
   return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
 }
@@ -274,7 +296,22 @@ export async function getUserProfile(uid) {
   const userRef = doc(db, 'users', uid)
   const snapshot = await getDoc(userRef)
   if (!snapshot.exists()) return null
-  return { id: snapshot.id, ...snapshot.data() }
+
+  const publicData = { id: snapshot.id, ...snapshot.data() }
+
+  // Private fields (email, role, isBanned) only load successfully if the
+  // caller is this user themselves or an admin — anyone else gets a
+  // permission error here, which we treat as "not visible" and ignore.
+  try {
+    const privateSnap = await getDoc(doc(db, 'users', uid, 'private', 'data'))
+    if (privateSnap.exists()) {
+      return { ...publicData, ...privateSnap.data() }
+    }
+  } catch {
+    // Not the owner/admin — private fields simply aren't included.
+  }
+
+  return publicData
 }
 
 export async function getUserItems(uid) {
@@ -339,4 +376,66 @@ export function subscribeToAllConversations(uid, onUpdate, onError) {
       if (onError) onError(err)
     },
   )
+}
+
+// ===== Admin dashboard =====
+// Every function below relies on Firestore rules' isAdmin() check — a
+// non-admin caller will simply get a permission-denied error.
+
+export async function getAllReports() {
+  const q = query(collection(db, 'reports'), orderBy('createdAt', 'desc'))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+}
+
+export async function updateReportStatus(reportId, status) {
+  const reportRef = doc(db, 'reports', reportId)
+  await updateDoc(reportRef, { status, resolution: status })
+}
+
+export async function getAllUsersForAdmin() {
+  // Public profile docs (displayName, photoURL, etc.)
+  const usersSnap = await getDocs(collection(db, 'users'))
+  const publicByUid = {}
+  usersSnap.docs.forEach((docSnap) => {
+    publicByUid[docSnap.id] = { id: docSnap.id, ...docSnap.data() }
+  })
+
+  // Private docs (email, role, isBanned) — only readable by an admin,
+  // fetched here via a collection group query across every user's
+  // private/data document.
+  const privateSnap = await getDocs(collectionGroup(db, 'private'))
+  privateSnap.docs.forEach((docSnap) => {
+    const uid = docSnap.ref.parent.parent.id
+    if (publicByUid[uid]) {
+      Object.assign(publicByUid[uid], docSnap.data())
+    }
+  })
+
+  return Object.values(publicByUid)
+}
+
+export async function setUserBanStatus(uid, isBanned) {
+  const privateRef = doc(db, 'users', uid, 'private', 'data')
+  await updateDoc(privateRef, { isBanned, updatedAt: serverTimestamp() })
+}
+
+export async function setUserRole(uid, role) {
+  const privateRef = doc(db, 'users', uid, 'private', 'data')
+  await updateDoc(privateRef, { role, updatedAt: serverTimestamp() })
+}
+
+export async function getAllItemsForAdmin() {
+  const q = query(collection(db, 'items'), orderBy('createdAt', 'desc'))
+  const snapshot = await getDocs(q)
+  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+}
+
+export async function setItemHidden(itemId, isHidden) {
+  const itemRef = doc(db, 'items', itemId)
+  await updateDoc(itemRef, { isHidden, updatedAt: serverTimestamp() })
+}
+
+export async function adminDeleteItem(itemId) {
+  await deleteItem(itemId)
 }

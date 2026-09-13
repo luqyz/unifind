@@ -1,4 +1,5 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import AdminPage from './pages/AdminPage'
 import Footer from './components/Footer'
 import Navbar from './components/Navbar'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -24,7 +25,7 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div className="app-shell min-h-screen bg-cream text-navy">
+        <div className="app-shell min-h-screen bg-page text-ink">
           <Navbar />
           <main className="pb-16 md:pb-0">
             <Routes>
@@ -65,6 +66,7 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="/admin" element={<AdminPage />} />
               <Route path="*" element={<HomePage />} />
             </Routes>
           </main>

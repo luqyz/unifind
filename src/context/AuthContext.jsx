@@ -8,14 +8,18 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) {
         setUser(null)
+        setIsAdmin(false)
         setLoading(false)
         return
       }
+
+      let resolvedUser = firebaseUser
 
       // Fall back to the Firestore profile's displayName for accounts
       // created before the Auth-level displayName was set at signup.
@@ -23,18 +27,23 @@ export function AuthProvider({ children }) {
         try {
           const profileSnap = await getDoc(doc(db, 'users', firebaseUser.uid))
           const profileName = profileSnap.exists() ? profileSnap.data().displayName : null
-
           if (profileName) {
-            setUser({ ...firebaseUser, displayName: profileName })
-            setLoading(false)
-            return
+            resolvedUser = { ...firebaseUser, displayName: profileName }
           }
         } catch (err) {
           console.log('Could not load profile displayName:', err)
         }
       }
 
-      setUser(firebaseUser)
+      // Check admin status from the user's own private profile doc.
+      try {
+        const privateSnap = await getDoc(doc(db, 'users', firebaseUser.uid, 'private', 'data'))
+        setIsAdmin(privateSnap.exists() && privateSnap.data().role === 'admin')
+      } catch (err) {
+        setIsAdmin(false)
+      }
+
+      setUser(resolvedUser)
       setLoading(false)
     })
 
@@ -45,12 +54,13 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       loading,
+      isAdmin,
       logout: async () => {
         const { signOut } = await import('firebase/auth')
         return signOut(auth)
       },
     }),
-    [user, loading],
+    [user, loading, isAdmin],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
