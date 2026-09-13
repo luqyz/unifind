@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { signInWithEmail, signInWithGoogle } from '../services/firebaseService'
+import { signInWithEmail, signInWithGoogle, getAuthErrorMessage } from '../services/firebaseService'
 
 export default function LoginPage() {
   const navigate = useNavigate()
@@ -22,7 +22,7 @@ export default function LoginPage() {
       await signInWithEmail(form)
       navigate('/')
     } catch (err) {
-      setError(err.message || 'Login failed.')
+      setError(getAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }
@@ -36,7 +36,7 @@ export default function LoginPage() {
       await signInWithGoogle()
       navigate('/')
     } catch (err) {
-      setError(err.message || 'Google login failed.')
+      setError(getAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }

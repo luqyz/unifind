@@ -125,7 +125,9 @@ export default function Navbar() {
                           type="button"
                           onClick={() => {
                             setDesktopMenuOpen(false)
-                            logout()
+                            if (window.confirm('Log out of UniFind?')) {
+                              logout()
+                            }
                           }}
                           className="topbar-dropdown-logout w-full flex items-center gap-2 px-4 py-2.5 text-sm text-left"
                         >
@@ -199,7 +201,9 @@ export default function Navbar() {
               type="button"
               onClick={() => {
                 setMobileOpen(false)
-                logout()
+                if (window.confirm('Log out of UniFind?')) {
+                  logout()
+                }
               }}
               className="mobile-logout block w-full text-left px-1 py-1.5 text-sm"
             >

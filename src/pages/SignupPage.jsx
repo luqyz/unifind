@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { signUpWithEmail } from '../services/firebaseService'
+import { signUpWithEmail, getAuthErrorMessage } from '../services/firebaseService'
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -32,7 +32,7 @@ export default function SignupPage() {
       })
       navigate('/')
     } catch (err) {
-      setError(err.message || 'Account creation failed.')
+      setError(getAuthErrorMessage(err))
     } finally {
       setLoading(false)
     }

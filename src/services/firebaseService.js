@@ -439,3 +439,26 @@ export async function setItemHidden(itemId, isHidden) {
 export async function adminDeleteItem(itemId) {
   await deleteItem(itemId)
 }
+
+// Maps raw Firebase Auth error codes to friendly, user-facing messages.
+// Firebase's default err.message (e.g. "Firebase: Error (auth/invalid-credential).")
+// is meant for developers, not end users — this translates it.
+export function getAuthErrorMessage(error) {
+  const code = error?.code || ''
+
+  const messages = {
+    'auth/invalid-credential': 'Incorrect email or password. Please try again.',
+    'auth/user-not-found': "We couldn't find an account with that email.",
+    'auth/wrong-password': 'Incorrect password. Please try again.',
+    'auth/invalid-email': 'That email address doesn\u2019t look right.',
+    'auth/email-already-in-use': 'An account with this email already exists. Try logging in instead.',
+    'auth/weak-password': 'Password is too weak — use at least 6 characters.',
+    'auth/too-many-requests': 'Too many attempts. Please wait a moment and try again.',
+    'auth/network-request-failed': 'Network error. Check your connection and try again.',
+    'auth/popup-closed-by-user': 'Sign-in was cancelled.',
+    'auth/cancelled-popup-request': 'Sign-in was cancelled.',
+    'auth/user-disabled': 'This account has been disabled.',
+  }
+
+  return messages[code] || 'Something went wrong. Please try again.'
+}
