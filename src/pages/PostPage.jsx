@@ -151,7 +151,7 @@ export default function PostPage() {
       if (!form.contactEmail.trim() && !form.contactPhone.trim()) {
         throw new Error('At least one contact method is required.')
       }
-      if (form.hasReward && !form.rewardAmount.trim()) {
+      if (form.type === 'lost' && form.hasReward && !form.rewardAmount.trim()) {
         throw new Error('Enter a reward amount, or turn off the reward toggle.')
       }
 
@@ -229,7 +229,7 @@ export default function PostPage() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setForm((prev) => ({ ...prev, type: 'found' }))}
+                  onClick={() => setForm((prev) => ({ ...prev, type: 'found', hasReward: false, rewardAmount: '', rewardNote: '' }))}
                   className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-semibold transition ${
                     form.type === 'found'
                       ? 'border-sage bg-sage/10 text-sage'

@@ -296,7 +296,7 @@ export default function ItemDetailPage() {
                 <div className="rounded-lg border border-amber/40 bg-amber/10 px-4 py-3 flex items-start gap-2.5">
                   <Icon className="h-5 w-5 text-amber-dark flex-shrink-0 mt-0.5" path={<><circle cx="12" cy="8" r="6" /><path d="M15.5 13.5 17 22l-5-3-5 3 1.5-8.5" /></>} />
                   <div>
-                    <p className="text-sm font-bold text-ink">{item.rewardAmount} reward</p>
+                    <p className="text-sm font-bold text-ink">RM {item.rewardAmount} reward</p>
                     {item.rewardNote && <p className="text-xs text-ink-soft mt-0.5">{item.rewardNote}</p>}
                   </div>
                 </div>
