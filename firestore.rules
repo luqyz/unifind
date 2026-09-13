@@ -39,7 +39,18 @@ service cloud.firestore {
         request.resource.data.role == 'user' &&
         request.resource.data.isBanned == false &&
         request.resource.data.createdAt is timestamp;
-      allow update: if isOwner(userId) || isAdmin();
+
+      // SECURITY FIX (critical): an owner may update their own profile, but
+      // never the privileged/moderation fields — those require isAdmin().
+      // Without this, any signed-in user could self-promote to admin,
+      // self-verify, or clear their own ban with a raw updateDoc() call.
+      allow update: if isAdmin() || (
+        isOwner(userId) &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.isBanned == resource.data.isBanned &&
+        request.resource.data.isVerified == resource.data.isVerified &&
+        request.resource.data.uid == resource.data.uid
+      );
       allow delete: if isAdmin();
     }
 
@@ -63,17 +74,31 @@ service cloud.firestore {
         request.resource.data.createdAt is timestamp &&
         (!('privateDetails' in request.resource.data) || request.resource.data.privateDetails is string) &&
         (!('hasReward' in request.resource.data) || request.resource.data.hasReward is bool);
-      allow update: if (isOwner(resource.data.userId) || isAdmin()) &&
-        (request.resource.data.title == resource.data.title ||
-         isOwner(resource.data.userId)) &&
+
+      // SECURITY FIX (high): a banned owner can no longer edit their listings.
+      // SECURITY FIX (medium): moderation fields (isHidden, flaggedCount,
+      // isDeleted) are frozen for owners — only an admin can change them,
+      // so a flagged/hidden listing can't be silently un-hidden by its poster.
+      allow update: if (
+        (isOwner(resource.data.userId) && !isBanned()) || isAdmin()
+      ) &&
+        (request.resource.data.title == resource.data.title || isOwner(resource.data.userId)) &&
         request.resource.data.status in ['open', 'resolved', 'claimed'] &&
-        request.resource.data.userId == resource.data.userId;
+        request.resource.data.userId == resource.data.userId &&
+        (isAdmin() || request.resource.data.isHidden == resource.data.isHidden) &&
+        (isAdmin() || request.resource.data.flaggedCount == resource.data.flaggedCount) &&
+        (isAdmin() || request.resource.data.isDeleted == resource.data.isDeleted);
       allow delete: if isOwner(resource.data.userId) || isAdmin();
 
       // Messages subcollection for safe contact
       match /messages/{messageId} {
         allow read: if signedIn() && request.auth.uid in resource.data.participants;
-        allow create: if signedIn() && 
+
+        // SECURITY FIX (high): banned users can't send messages.
+        // SECURITY FIX (medium): every conversation about an item must
+        // include that item's actual owner as one of the two participants —
+        // stops a user from DMing an arbitrary UID unrelated to the listing.
+        allow create: if signedIn() && !isBanned() &&
           request.resource.data.senderId == request.auth.uid &&
           request.resource.data.receiverId is string &&
           request.resource.data.receiverId != request.auth.uid &&
@@ -82,6 +107,7 @@ service cloud.firestore {
           request.resource.data.participants.size() == 2 &&
           request.auth.uid in request.resource.data.participants &&
           request.resource.data.receiverId in request.resource.data.participants &&
+          get(/databases/$(database)/documents/items/$(itemId)).data.userId in request.resource.data.participants &&
           request.resource.data.text is string &&
           request.resource.data.text.size() > 0 &&
           request.resource.data.createdAt is timestamp;
